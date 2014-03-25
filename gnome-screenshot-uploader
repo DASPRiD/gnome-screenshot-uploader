@@ -124,8 +124,8 @@ def main(argv):
     try:
         opts, args = getopt.getopt(
             argv,
-            'hwabBd:e:',
-            ['help', 'window', 'area', 'include-border', 'remove-border', 'delay=', 'border-effect=']
+            'hwabBpd:e:',
+            ['help', 'window', 'area', 'include-border', 'remove-border', 'include-pointer', 'delay=', 'border-effect=']
         )
     except getopt.GetoptError:
         help()
@@ -145,6 +145,8 @@ def main(argv):
             options.append('--include-border')
         elif opt in ('-B', '--remove-border'):
             options.append('--remove-border')
+        elif opt in ('-p', '--include-pointer'):
+            options.append('--include-pointer')
         elif opt in ('-d', '--delay'):
             options.append('--delay=' + arg)
         elif opt in ('-e', '--border-effect'):
@@ -173,6 +175,7 @@ def help():
     print '  -a, --area'
     print '  -b, --include-border'
     print '  -B, --remove-border'
+    print '  -p, --include-pointer'
     print '  -d, --delay=seconds'
     print '  -e, --border-effect=effect'
     print ''
