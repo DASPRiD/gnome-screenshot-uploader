@@ -83,16 +83,16 @@ class StatusWindow:
         gtk.main_quit()
 
 class Uploader(threading.Thread):
-    def __init__(self, statusWindow, screenshotFile):
+    def __init__(self, statusWindow, screenshotFilename):
         super(Uploader, self).__init__()
-        self.statusWindow   = statusWindow
-        self.screenshotFile = screenshotFile
+        self.statusWindow       = statusWindow
+        self.screenshotFilename = screenshotFilename
 
     def run(self):
         config = ConfigParser()
         config.readfp(open(os.path.expanduser('~/.gnome-screenshot-uploader.cfg')))
 
-        data = b64encode(self.screenshotFile.read())
+        data = b64encode(open(self.screenshotFilename).read())
         signature = sha1(data + config.get('uploader', 'password')).hexdigest()
 
         curl = pycurl.Curl()
@@ -158,9 +158,11 @@ def main(argv):
         sys.exit(1)
 
     statusWindow = StatusWindow()
-    uploader = Uploader(statusWindow, screenshotFile)
+    uploader = Uploader(statusWindow, screenshotFile.name)
     uploader.start()
     statusWindow.main()
+
+    screenshotFile.close()
 
 def help():
     print 'Usage: gnome-screenshot-uploader [OPTIONS...]'
