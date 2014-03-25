@@ -1,0 +1,108 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import pygtk
+pygtk.require('2.0')
+import gtk
+import sys
+import getopt
+import tempfile
+from subprocess import call
+
+class Uploader:
+    def delete_event(self, widget, event, data=None):
+        return False
+
+    def destroy(self, widget, data=None):
+        gtk.main_quit()
+
+    def __init__(self):
+        self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+        self.window.set_decorated(False)
+        self.window.set_keep_above(True)
+        self.window.stick()
+        self.window.set_type_hint(gtk.gdk.WINDOW_TYPE_HINT_NOTIFICATION)
+
+        # Move window to the bottom left
+        self.window.set_gravity(gtk.gdk.GRAVITY_SOUTH_WEST)
+        self.window.move(0, self.window.get_screen().get_height())
+
+        self.hbox = gtk.HBox(spacing=6)
+
+        # Add progressbar
+        self.progressBar = gtk.ProgressBar()
+        self.progressBar.set_fraction(0.7)
+        self.hbox.pack_start(self.progressBar, True, True, 0)
+        self.progressBar.show()
+
+        # Add label
+        self.label = gtk.Label('Uploading screenshot …')
+        self.hbox.pack_start(self.label, True, True, 0)
+        self.label.show()
+
+        self.window.add(self.hbox)
+        self.hbox.show()
+
+        # Connect and show window
+        self.window.connect('delete_event', self.delete_event)
+        self.window.connect('destroy', self.destroy)
+        self.window.show()
+
+    def main(self):
+        gtk.main()
+
+def main(argv):
+    try:
+        opts, args = getopt.getopt(
+            argv,
+            'hwabBd:e:',
+            ['help', 'window', 'area', 'include-border', 'remove-border', 'delay=', 'border-effect=']
+        )
+    except getopt.GetoptError:
+        help()
+        sys.exit(2)
+
+    options = ['gnome-screenshot']
+    
+    for opt, arg in opts:
+        if opt in ('-h', '--help'):
+            help()
+            sys.exit()
+        elif opt in ('-w', '--window'):
+            options.append('--window')
+        elif opt in ('-a', '--area'):
+            options.append('--area')
+        elif opt in ('-b', '--include-border'):
+            options.append('--include-border')
+        elif opt in ('-B', '--remove-border'):
+            options.append('--remove-border')
+        elif opt in ('-d', '--delay'):
+            options.append('--delay=' + arg)
+        elif opt in ('-e', '--border-effect'):
+            options.append('--border-effect=' + arg)
+
+    screenshotFile = tempfile.NamedTemporaryFile()
+    options.append('--file=' + screenshotFile.name)
+
+    if call(options) > 0:
+        print 'Error while executing gnome-screenshot'
+        sys.exit(1)
+
+def help():
+    print 'Usage: gnome-screenshot-uploader [OPTIONS...]'
+    print ''
+    print 'Available options:'
+    print '  -h, --help'
+    print '  -w, --window'
+    print '  -a, --area'
+    print '  -b, --include-border'
+    print '  -B, --remove-border'
+    print '  -d, --delay=seconds'
+    print '  -e, --border-effect=effect'
+    print ''
+    print 'For detailed information about the parameters, see gnome-screenshot --help'
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
+    #uploader = Uploader()
+    #uploader.main()
