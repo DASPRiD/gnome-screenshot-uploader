@@ -5,11 +5,19 @@ import pygtk
 pygtk.require('2.0')
 import gtk
 import sys
+import os
+from ConfigParser import ConfigParser
 import getopt
 import tempfile
 from subprocess import call
+import pycurl
+from base64 import b64encode
+from hashlib import sha1
+import threading
 
-class Uploader:
+gtk.gdk.threads_init()
+
+class StatusWindow:
     def delete_event(self, widget, event, data=None):
         return False
 
@@ -31,7 +39,6 @@ class Uploader:
 
         # Add progressbar
         self.progressBar = gtk.ProgressBar()
-        self.progressBar.set_fraction(0.7)
         self.hbox.pack_start(self.progressBar, True, True, 0)
         self.progressBar.show()
 
@@ -49,8 +56,70 @@ class Uploader:
         self.window.show()
 
     def main(self):
+        gtk.threads_enter()
         gtk.main()
+        gtk.threads_leave()
 
+    def progress(self, downloadTotal, downloadDone, uploadTotal, uploadDone):
+        if uploadTotal == 0.0:
+            return
+        
+        gtk.threads_enter()
+
+        try:
+            self.progressBar.set_fraction(uploadDone / uploadTotal)
+        finally:
+            gtk.threads_leave()
+
+    def finish(self, result):
+        gtk.threads_enter()
+
+        try:
+            clipboard = gtk.clipboard_get(gtk.gdk.SELECTION_CLIPBOARD)
+            clipboard.set_text(result)
+        finally:
+            gtk.threads_leave()
+
+        gtk.main_quit()
+
+class Uploader(threading.Thread):
+    def __init__(self, statusWindow, screenshotFile):
+        super(Uploader, self).__init__()
+        self.statusWindow   = statusWindow
+        self.screenshotFile = screenshotFile
+
+    def run(self):
+        config = ConfigParser()
+        config.readfp(open(os.path.expanduser('~/.gnome-screenshot-uploader.cfg')))
+
+        data = b64encode(self.screenshotFile.read())
+        signature = sha1(data + config.get('uploader', 'password')).hexdigest()
+
+        curl = pycurl.Curl()
+        curl.setopt(curl.URL, config.get('uploader', 'posturl'))
+        curl.setopt(curl.HTTPHEADER, [
+            'X-Username: ' + config.get('uploader', 'username'),
+            'X-Signature: ' + signature,
+            'Content-Type: text/plain'
+        ])
+
+        curl.setopt(curl.POST, 1)
+        curl.setopt(curl.POSTFIELDS, data)
+
+        curl.setopt(curl.NOPROGRESS, 0)
+        curl.setopt(curl.PROGRESSFUNCTION, self.statusWindow.progress)
+
+        self.result = ''
+        curl.setopt(curl.WRITEFUNCTION, self.bodyCallback)
+
+        curl.perform()
+        curl.close()
+
+        self.statusWindow.finish(self.result)
+
+    def bodyCallback(self, string):
+        self.result = self.result + string
+        
 def main(argv):
     try:
         opts, args = getopt.getopt(
@@ -88,6 +157,11 @@ def main(argv):
         print 'Error while executing gnome-screenshot'
         sys.exit(1)
 
+    statusWindow = StatusWindow()
+    uploader = Uploader(statusWindow, screenshotFile)
+    uploader.start()
+    statusWindow.main()
+
 def help():
     print 'Usage: gnome-screenshot-uploader [OPTIONS...]'
     print ''
@@ -104,5 +178,4 @@ def help():
 
 if __name__ == '__main__':
     main(sys.argv[1:])
-    #uploader = Uploader()
-    #uploader.main()
+
