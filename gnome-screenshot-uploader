@@ -159,6 +159,10 @@ def main(argv):
         print 'Error while executing gnome-screenshot'
         sys.exit(1)
 
+    if os.path.getsize(screenshotFile.name) == 0:
+        print 'No screenshot generated'
+        sys.exit(1)
+
     statusWindow = StatusWindow()
     uploader = Uploader(statusWindow, screenshotFile.name)
     uploader.start()
